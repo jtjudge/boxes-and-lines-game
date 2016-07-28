@@ -5,6 +5,7 @@ class Move {
 	private final String name;
 	private final int index;
 	private boolean isAvailable;
+	private boolean isStrategized;
 	private int hashcode;	//cached after first call to hashCode()
 
 	private Space left, right;
@@ -16,6 +17,7 @@ class Move {
 		this.name = name;
 		this.index = index;
 		this.isAvailable = true;
+		this.isStrategized = false;
 		this.hashcode = 0;
 		this.next = next;
 	}
@@ -76,6 +78,10 @@ class Move {
 		this.isAvailable = false;
 		this.chain = null;
 	}
+	
+	boolean isStrategized() { return this.isStrategized; }
+	
+	void setStrategized(boolean set) { this.isStrategized = set; }
 	
 	boolean hasChain() { return this.chain != null; }
 	

@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -12,51 +13,45 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferInt;
 import java.util.HashMap;
 
 import javax.swing.JFrame;
 
-public class WindowGameRunner extends Canvas implements Runnable {
+public final class WindowGameRunner extends Canvas implements Runnable {
+
+	private static final long serialVersionUID = 1L;
+	
+	private static final int W_RATIO = 16;
+	private static final int H_RATIO = 9;
+	private static final int F_WIDTH = 200;
+	private static final int F_HEIGHT = H_RATIO * F_WIDTH / W_RATIO;
+	private static final int FONT_SIZE = 6;
+	private static final int SCALE = 8;
+	
+	private static final String NAME = "BOXES AND LINES";
+	
+	private static final Color LINE = Color.WHITE;
+	private static final Color CURSOR = Color.GREEN;
+	private static final Color POINT = Color.GRAY;
+	private static final Color CHAIN = Color.ORANGE;
+	private static final Color STRATEGY = Color.CYAN;
 	
 	private Game game;
 	private Move cursor;
-	private boolean selected;
-	
-	private static final int WIDTH = 160;
-	private static final int HEIGHT = WIDTH / 16 * 9;
-	private static final int SCALE = 8;
-	private static final String NAME = "Boxes and Lines";
+	private JFrame frame;
+	private InputManager in;
+	private BufferedImage image;
 	
 	private int spaceSize, pointSize;
-	
+	private boolean portraitMode;
 	private boolean running;
-	private int tickCount;
-	
-	private JFrame frame;
-	
-	private BufferedImage image;
-	private int[] pixels;
-	
-	private InputManager in;
 	
 	public WindowGameRunner() {
-		game = new Game(8, 8);	//TODO
-		Player c1 = Player.constructComputerPlayer("CPU 1", '1', 4);
-		Player c2 = Player.constructComputerPlayer("CPU 2", '2', 4);
-		game.add(c1); game.add(c2);
-		pointSize = SCALE * 2;
-		if(game.getRows() >= game.getCols()) {
-			spaceSize = (HEIGHT * SCALE) / game.getRows() - (2 * pointSize);
-		} else {
-			spaceSize = (WIDTH * SCALE) / game.getCols() - (2 * pointSize);
-		}
-		in = new InputManager(this);
 		running = false;
-		tickCount = 0;
-		setMinimumSize(new Dimension(WIDTH * SCALE, HEIGHT * SCALE));
-		setMaximumSize(new Dimension(WIDTH * SCALE, HEIGHT * SCALE));
-		setPreferredSize(new Dimension(WIDTH * SCALE, HEIGHT * SCALE));
+		
+		setMinimumSize(new Dimension(F_WIDTH * SCALE, F_HEIGHT * SCALE));
+		setMaximumSize(new Dimension(F_WIDTH * SCALE, F_HEIGHT * SCALE));
+		setPreferredSize(new Dimension(F_WIDTH * SCALE, F_HEIGHT * SCALE));
 		
 		frame = new JFrame(NAME);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -68,16 +63,15 @@ public class WindowGameRunner extends Canvas implements Runnable {
 		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
 		
-		image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
-		pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+		in = new InputManager(this);
+		
+		image = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
 	}
 	
-	public void setUp() {
-		//TODO
-	}
-	
-	public void autoSetUp() {
-		//TODO
+	public void setUp(int rows, int cols, Player p1, Player p2) {
+		game = new Game(rows, cols);
+		game.add(p1); game.add(p2);
+		autoScale();
 	}
 	
 	public synchronized void start() {
@@ -89,73 +83,109 @@ public class WindowGameRunner extends Canvas implements Runnable {
 		running = false;
 	}
 	
+	@Override
 	public void run() {
-		long lastTime = System.nanoTime();
-		double nsPerTick = 1000000000D / 60D;
-		
-		int ticks = 0;
-		int frames = 0;
-		
-		long lastTimer = System.currentTimeMillis();
-		double dt = 0;
-		
+		final long targetFrameTime = 1000000000 / 60;
+		long frameTime = 0, thisSecond = 0, now, dt;
+		int ticks = 0, frames = 0;
 		while(running) {
-			long now = System.nanoTime();
-			dt += (now - lastTime) / nsPerTick;
-			lastTime = now;
-			boolean shouldRender = true;;
-			
-			while(dt >= 1) {
-				ticks++;
-				tick();
-				dt--;
-				shouldRender = true;
-			}
-			
-			try {
-				Thread.sleep(2);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			if(shouldRender) {
-				frames++;
+			now = System.nanoTime();
+			tick();
+			ticks++;
+			dt = System.nanoTime() - now;
+			frameTime += dt;
+			thisSecond += dt;
+			if(frameTime >= targetFrameTime) {
+				now = System.nanoTime();
 				render();
+				frames++;
+				dt = System.nanoTime() - now;
+				thisSecond += dt;
+				frameTime = 0;
 			}
-			
-			if(System.currentTimeMillis() - lastTimer > 1000) {
-				lastTimer += 1000;
-				System.out.println(ticks + " ticks, " + frames + " frames");
-				frames = 0;
+			if(thisSecond >= 1000000000) {
+				System.out.println(ticks + ", " + frames);
+				System.out.println(game.getActiveChains());
 				ticks = 0;
+				frames = 0;
+				thisSecond = 0;
 			}
-			
 		}
 	}
 	
-	public void tick() {
-		tickCount++;
-		for(int i = 0; i < pixels.length; i++) {
-			pixels[i] = i * tickCount;
-		}
+	private void tick() {
 		if(game.isActive()) {
 			Player player = game.getTurn();
 			if(player.isCPU()) {
-				Move m = player.thinkOfMove(game);
+				Move m = player.thinkOfMove(game, player.getDiff());
+				game.make(m, player);
+			} else if(in.isKeyPressed("ENTER")) {
+				Move m = player.thinkOfMove(game, 4);
 				game.make(m, player);
 			} else {
-				cursor = getMoveAtCoords(in.getX(), in.getY());
-				if(cursor != null && in.isMouseClicked("LeftClick")) {
-					game.make(cursor, player);
+				cursor = getMoveAtCoords(in.getX() - spaceSize, in.getY() - spaceSize);
+				if(cursor == null) {
+					if(!in.isMousePressed("RightClick") && player.hasStrategy()) {
+						Move m = player.doStrategy();
+						if(m.isAvailable()) game.make(m, player);
+					}
+					in.isMouseClicked("LeftClick"); //de-clicks the mouse if clicked
+				} else {
+					if(in.isMouseClicked("LeftClick")) {
+						if(in.isMousePressed("RightClick")) {
+							player.addToStrategy(cursor);
+						} else {
+							game.make(cursor, player);
+						}
+					}
+					if(in.isMousePressed("LeftClick") &&
+						in.isMousePressed("RightClick")) {
+						player.addToStrategy(cursor);
+					}
 				}
 			}
 		}
 	}
 	
-	private Move getMoveAtCoords(int x, int y) {
-		return null;
+	private void autoScale() {
+		int height, width;
+		if(game.getCols() / game.getRows() > W_RATIO / H_RATIO) {
+			height = (5 * (F_HEIGHT * SCALE) / 2) / (6 * (game.getRows() + 2));
+			width = (5 * F_WIDTH * SCALE) / (6 * (game.getCols() + 1));
+			portraitMode = false;
+		} else {
+			height = (5 * F_HEIGHT * SCALE) / (6 * (game.getRows() + 2));
+			width = (5 * (F_WIDTH * SCALE) / 2) / (6 * (game.getCols() + 1));
+			portraitMode = true;
+		}
+		spaceSize = width <= height ? width : height;
+		pointSize = spaceSize / 5 == 0 ? 1 : spaceSize / 5;
 	}
 	
-	public void render() {
+	private Move getMoveAtCoords(int x, int y) {
+		if(x < 0 || y < 0) return null;
+		int row = y / (spaceSize + pointSize);
+		int col = x / (spaceSize + pointSize);
+		int innerX = x % (spaceSize + pointSize);
+		int innerY = y % (spaceSize + pointSize);
+		if(innerX > pointSize && innerY < pointSize) {
+			String p1 = Character.toString((char)(col + 65)) +
+					Character.toString((char)(row + 48 + 1));
+			String p2 = Character.toString((char)(col + 65 + 1)) + 
+					Character.toString((char)(row + 48 + 1));
+			return game.retrieve(p1 + ", " + p2);
+		} else if(innerX < pointSize && innerY > pointSize) {
+			String p1 = Character.toString((char)(col + 65)) +
+					Character.toString((char)(row + 48 + 1));
+			String p2 = Character.toString((char)(col + 65)) + 
+					Character.toString((char)(row + 48 + 2));
+			return game.retrieve(p1 + ", " + p2);
+		} else {
+			return null;
+		}
+	}
+	
+	private void render() {
 		BufferStrategy bs = getBufferStrategy();
 		if(bs == null) {
 			createBufferStrategy(3);
@@ -163,123 +193,173 @@ public class WindowGameRunner extends Canvas implements Runnable {
 		}
 		
 		Graphics g = bs.getDrawGraphics();
-		g.drawImage(image, 0, 0, getWidth(), getHeight(), null);
+		g.drawImage(image, 0, 0, null);
 		drawGame(g);
+		drawText(g);
 		g.dispose();
 		bs.show();
 	}
 	
 	private void drawGame(Graphics g) {
 		GameIterator iter = game.getIterator();
-		g.fillRect(0, 0, pointSize, pointSize);
 		int vShift = 0;
 		for( ; iter.hasNextSpace(); vShift++) {
 			Move left = iter.nextMove();
-			g.setColor(Color.BLACK);
 			if(!left.isAvailable()) {
-				g.fillRect(0, vShift * (spaceSize + pointSize) + pointSize,
-						pointSize, spaceSize);
+				g.setColor(LINE);
+				drawLeft(g, vShift);
+			} else if(left == cursor) {
+				g.setColor(CURSOR);
+				drawLeft(getGraphics(), vShift);
+			} else if(left.isStrategized()) {
+				g.setColor(STRATEGY);
+				drawLeft(getGraphics(), vShift);
+			} else if(left.hasChain()) {
+				g.setColor(CHAIN);
+				drawLeft(getGraphics(), vShift);
 			}
 			int hShift = 0;
 			for( ; hShift < game.getCols(); hShift++) {
 				Move top = iter.nextMove();
 				Move right = iter.nextMove();
 				Space s = iter.nextSpace();
-				g.setColor(Color.WHITE);
-				g.fillRect(hShift * (spaceSize + pointSize), vShift *
-						(spaceSize + pointSize), pointSize, pointSize);
+				g.setColor(POINT);
+				drawPoint(g, hShift, vShift);
 				if(!top.isAvailable()) {
-					g.setColor(Color.BLACK);
-					g.fillRect(hShift * (spaceSize + pointSize) + pointSize, 
-							vShift * (spaceSize + pointSize), spaceSize, pointSize);
+					g.setColor(LINE);
+					drawTop(g, hShift, vShift);
 				} else if(top == cursor) {
-					g.setColor(Color.YELLOW);
-					g.fillRect(hShift * (spaceSize + pointSize) + pointSize, 
-							vShift * (spaceSize + pointSize), spaceSize, pointSize);
+					g.setColor(CURSOR);
+					drawTop(g, hShift, vShift);
+				} else if(top.isStrategized()) {
+					g.setColor(STRATEGY);
+					drawTop(g, hShift, vShift);		
+				} else if(top.hasChain()) {
+					g.setColor(CHAIN);
+					drawTop(getGraphics(), hShift, vShift);
 				}
-				g.setColor(Color.BLACK);
 				if(!right.isAvailable()) {
-					g.fillRect((hShift + 1) * (spaceSize + pointSize), 
-							vShift * (spaceSize + pointSize) + pointSize, pointSize,
-							spaceSize);
+					g.setColor(LINE);
+					drawRight(g, hShift, vShift);
 				} else if(right == cursor) {
-					g.setColor(Color.YELLOW);
-					g.fillRect((hShift + 1) * (spaceSize + pointSize), 
-							vShift * (spaceSize + pointSize) + pointSize, pointSize,
-							spaceSize);
+					g.setColor(CURSOR);
+					drawRight(g, hShift, vShift);
+				} else if(right.isStrategized()) {
+					g.setColor(STRATEGY);
+					drawRight(g, hShift, vShift);
+				} else if(right.hasChain()) {
+					g.setColor(CHAIN);
+					drawRight(getGraphics(), hShift, vShift);
 				}
 				if(s.isFull()) {
 					if(s.getMark() == '1') g.setColor(Color.BLUE);
 					if(s.getMark() == '2') g.setColor(Color.RED);
-					g.fillRect(hShift * (spaceSize + pointSize) + pointSize,
-							vShift * (spaceSize + pointSize) + pointSize,
-							spaceSize, spaceSize);
+					drawSpace(g, hShift, vShift);
 				}
 			}
-			g.setColor(Color.WHITE);
-			g.fillRect(hShift * (spaceSize + pointSize), vShift *
-					(spaceSize + pointSize), pointSize, pointSize);
+			g.setColor(POINT);
+			drawPoint(g, hShift, vShift);
 		}
 		int hShift = 0;
 		for( ; iter.hasNextMove(); hShift++) {
 			Move bottom = iter.nextMove();
-			g.setColor(Color.WHITE);
-			g.fillRect(hShift * (spaceSize + pointSize),
-					vShift * (spaceSize + pointSize), pointSize, pointSize);
-			g.setColor(Color.BLACK);
+			g.setColor(POINT);
+			drawPoint(g, hShift, vShift);
 			if(!bottom.isAvailable()) {
-				g.fillRect(hShift * (spaceSize + pointSize) + pointSize, 
-						vShift * (spaceSize + pointSize), spaceSize, pointSize);
+				g.setColor(LINE);
+				drawBottom(g, hShift, vShift);
+			} else if(bottom == cursor) {
+				g.setColor(CURSOR);
+				drawBottom(g, hShift, vShift);
+			} else if(bottom.isStrategized()) {
+				g.setColor(STRATEGY);
+				drawBottom(g, hShift, vShift);
+			} else if(bottom.hasChain()) {
+				g.setColor(CHAIN);
+				drawBottom(getGraphics(), hShift, vShift);
 			}
 		}
-
-		g.fillRect(hShift * (spaceSize + pointSize),
-				vShift * (spaceSize + pointSize), pointSize, pointSize);
+		g.setColor(POINT);
+		drawPoint(g, hShift, vShift);
 	}
 	
 	private void drawLeft(Graphics g, int vShift) {
-		g.fillRect(0, vShift * (spaceSize + pointSize) + pointSize,
+		g.fillRect(spaceSize, (vShift * (spaceSize + pointSize)) +
+				spaceSize + pointSize,
 				pointSize, spaceSize);
 	}
 	
 	private void drawRight(Graphics g, int hShift, int vShift) {
-		g.fillRect((hShift + 1) * (spaceSize + pointSize), 
-				vShift * (spaceSize + pointSize) + pointSize, pointSize,
-				spaceSize);
+		g.fillRect(spaceSize + ((hShift + 1) * (spaceSize + pointSize)), 
+				(vShift * (spaceSize + pointSize)) + spaceSize + pointSize,
+				pointSize, spaceSize);
 	}
 	
 	private void drawTop(Graphics g, int hShift, int vShift) {
-		g.fillRect(hShift * (spaceSize + pointSize) + pointSize, 
-				vShift * (spaceSize + pointSize), spaceSize, pointSize);
+		g.fillRect((hShift * (spaceSize + pointSize)) + spaceSize + pointSize, 
+				(vShift * (spaceSize + pointSize)) + spaceSize,
+				spaceSize, pointSize);
 	}
 	
 	private void drawBottom(Graphics g, int hShift, int vShift) {
-		g.fillRect(hShift * (spaceSize + pointSize) + pointSize, 
-				vShift * (spaceSize + pointSize), spaceSize, pointSize);
+		g.fillRect((hShift * (spaceSize + pointSize)) + spaceSize + pointSize, 
+				(vShift * (spaceSize + pointSize)) + spaceSize, spaceSize, pointSize);
 	}
 	
 	private void drawSpace(Graphics g, int hShift, int vShift) {
-		g.fillRect(hShift * (spaceSize + pointSize) + pointSize,
-				vShift * (spaceSize + pointSize) + pointSize,
+		g.fillRect((hShift * (spaceSize + pointSize)) + spaceSize + pointSize,
+				(vShift * (spaceSize + pointSize)) + spaceSize + pointSize,
 				spaceSize, spaceSize);
 	}
 	
 	private void drawPoint(Graphics g, int hShift, int vShift) {
-		g.fillRect(hShift * (spaceSize + pointSize), vShift *
-				(spaceSize + pointSize), pointSize, pointSize);
+		g.fillRect((hShift * (spaceSize + pointSize)) + spaceSize,
+				(vShift * (spaceSize + pointSize)) + spaceSize,
+				pointSize, pointSize);
+	}
+	
+	private void drawText(Graphics g) {
+		g.setFont(new Font("Ubuntu", Font.BOLD, FONT_SIZE * SCALE));
+		if(portraitMode) {
+			g.drawString("Turn: " + game.getTurn().getName(),
+					2 * F_WIDTH * SCALE / 3, F_HEIGHT * SCALE / 2);
+			if(game.isEndGame()) {
+				int i = 0;
+				g.drawString("Scores: ", 2 * F_WIDTH * SCALE / 3,
+						(F_HEIGHT * SCALE / 2) + ++i * (FONT_SIZE * SCALE));
+				for(Player p : game.getPlayers()) {
+					g.drawString(p.getName() + ": " + p.getScore(),
+							2 * F_WIDTH * SCALE / 3, (F_HEIGHT * SCALE / 2) +
+								++i * (FONT_SIZE * SCALE));
+				}
+			}
+		} else {
+			g.drawString("Turn: " + game.getTurn().getName(), F_WIDTH * SCALE / 3,
+					3 * F_HEIGHT * SCALE / 4);
+			if(game.isEndGame()) {
+				int i = -1;
+				g.drawString("Scores: ", 2 * F_WIDTH * SCALE / 3,
+						(3 * F_HEIGHT * SCALE / 4) + ++i * 56);
+				for(Player p : game.getPlayers()) {
+					g.drawString(p.getName() + ": " + p.getScore(),
+							2 * F_WIDTH * SCALE / 3, (3 * F_HEIGHT * SCALE / 4) +
+								++i * 56);
+				}
+			}
+		}
 	}
 
 	private static class InputManager
 		implements KeyListener, MouseListener, MouseMotionListener {
-
+		
 		private HashMap<Integer, Key> keyCodesToKeys;
 		private HashMap<String, Key> namesToKeys;
 		private HashMap<Integer, Click> mouseCodesToClicks;
 		private HashMap<String, Click> namesToClicks;
 		
 		private static final Mouse MOUSE = new Mouse();
-
-		InputManager(Canvas c) {
+		
+		private InputManager(Canvas c) {
 			c.addKeyListener(this);
 			c.addMouseListener(this);
 			c.addMouseMotionListener(this);
@@ -287,50 +367,50 @@ public class WindowGameRunner extends Canvas implements Runnable {
 			namesToKeys = new HashMap<>();
 			mouseCodesToClicks = new HashMap<>();
 			namesToClicks = new HashMap<>();
-			addKeyMapping("W", KeyEvent.VK_W);
+			addKeyMapping("ENTER", KeyEvent.VK_ENTER);
 			addMouseMapping("LeftClick", MouseEvent.BUTTON1);
 			addMouseMapping("RightClick", MouseEvent.BUTTON3);
 		}
 		
-		void addKeyMapping(String s, int keyCode) {
+		private void addKeyMapping(String s, int keyCode) {
 			Key k = new Key(s, keyCode);
 			keyCodesToKeys.put(keyCode, k);
 			namesToKeys.put(s, k);
 		}
 		
-		void addMouseMapping(String s, int mouseCode) {
+		private void addMouseMapping(String s, int mouseCode) {
 			Click c = new Click(s, mouseCode);
 			mouseCodesToClicks.put(mouseCode, c);
 			namesToClicks.put(s, c);
 		}
 		
-		boolean isKeyPressed(String s) {
+		private boolean isKeyPressed(String s) {
 			Key k = namesToKeys.get(s);
 			if(k == null) return false;
 			return k.isPressed();
 		}
 		
-		boolean isMouseClicked(String s) {
+		private boolean isMouseClicked(String s) {
 			Click c = namesToClicks.get(s);
 			if(c == null) return false;
 			if(c.isClicked()) {
-				c.toggleClicked();
+				c.setClicked(false);
 				return true;
 			}
 			return false;
 		}
 		
-		boolean isMousePressed(String s) {
+		private boolean isMousePressed(String s) {
 			Click c = namesToClicks.get(s);
 			if(c == null) return false;
 			return c.isPressed();
 		}
 		
-		int getX() {
+		private int getX() {
 			return MOUSE.getX();
 		}
 		
-		int getY() {
+		private int getY() {
 			return MOUSE.getY();
 		}
 		
@@ -338,16 +418,16 @@ public class WindowGameRunner extends Canvas implements Runnable {
 		public void keyPressed(KeyEvent e) {
 			Key k = keyCodesToKeys.get(e.getKeyCode());
 			if(k == null) return;
-			k.togglePressed();
+			k.setPressed(true);
 		}
-
+		
 		@Override
 		public void keyReleased(KeyEvent e) {
 			Key k = keyCodesToKeys.get(e.getKeyCode());
 			if(k == null) return;
-			k.togglePressed();
+			k.setPressed(false);
 		}
-
+		
 		@Override
 		public void keyTyped(KeyEvent e) {
 			//not used	
@@ -357,28 +437,28 @@ public class WindowGameRunner extends Canvas implements Runnable {
 		public void mouseClicked(MouseEvent e) {
 			Click c = mouseCodesToClicks.get(e.getButton());
 			if(c == null) return;
-			c.toggleClicked();
+			c.setClicked(true);
 		}
-
+	
 		@Override
 		public void mousePressed(MouseEvent e) {
 			Click c = mouseCodesToClicks.get(e.getButton());
 			if(c == null) return;
-			c.togglePressed();
+			c.setPressed(true);
 		}
-
+	
 		@Override
 		public void mouseReleased(MouseEvent e) {
 			Click c = mouseCodesToClicks.get(e.getButton());
 			if(c == null) return;
-			c.togglePressed();
+			c.setPressed(false);
 		}
 		
 		@Override
 		public void mouseEntered(MouseEvent e) {
 			MOUSE.setInScreen(true);
 		}
-
+	
 		@Override
 		public void mouseExited(MouseEvent e) {
 			MOUSE.setInScreen(false);
@@ -390,14 +470,14 @@ public class WindowGameRunner extends Canvas implements Runnable {
 			MOUSE.setX(e.getX());
 			MOUSE.setY(e.getY());
 		}
-
+	
 		@Override
 		public void mouseMoved(MouseEvent e) {
 			MOUSE.setDragged(false);
 			MOUSE.setX(e.getX());
 			MOUSE.setY(e.getY());
 		}
-
+	
 	}
 	
 	private static class Key {
@@ -406,19 +486,19 @@ public class WindowGameRunner extends Canvas implements Runnable {
 		private int keyCode, pressCount;
 		private boolean pressed;
 		
-		Key(String name, int keyCode) {
+		private Key(String name, int keyCode) {
 			this.name = name;
 			this.keyCode = keyCode;
 			this.pressed = false;
 			this.pressCount = 0;
 		}
 		
-		boolean isPressed() {
+		private boolean isPressed() {
 			return pressed;
 		}
 		
-		void togglePressed() {
-			pressed = !pressed;
+		private void setPressed(boolean set) {
+			pressed = set;
 			if(pressed) {
 				pressCount++;
 			}
@@ -431,7 +511,7 @@ public class WindowGameRunner extends Canvas implements Runnable {
 		private int mouseCode, clickCount, pressCount;
 		private boolean clicked, pressed;
 		
-		Click(String name, int mouseCode) {
+		private Click(String name, int mouseCode) {
 			this.name = name;
 			this.mouseCode = mouseCode;
 			this.clicked = false;
@@ -439,24 +519,24 @@ public class WindowGameRunner extends Canvas implements Runnable {
 			this.pressed = false;
 			this.pressCount = 0;
 		}
-
-		boolean isClicked() {
+	
+		private boolean isClicked() {
 			return clicked;
 		}
 		
-		void toggleClicked() {
-			clicked = !clicked;
+		private void setClicked(boolean set) {
+			clicked = set;
 			if(clicked) {
 				clickCount++;
 			}
 		}
 		
-		boolean isPressed() {
+		private boolean isPressed() {
 			return pressed;
 		}
 		
-		void togglePressed() {
-			pressed = !pressed;
+		private void setPressed(boolean set) {
+			pressed = set;
 			if(pressed) {
 				pressCount++;
 			}
@@ -469,23 +549,23 @@ public class WindowGameRunner extends Canvas implements Runnable {
 		private int x, y;
 		private boolean dragged, inScreen;
 		
-		Mouse() {}
+		private Mouse() {}
 		
-		void setDragged(boolean setting) {
+		private void setDragged(boolean setting) {
 			dragged = setting;
 		}
 		
-		void setInScreen(boolean setting) {
+		private void setInScreen(boolean setting) {
 			inScreen = setting;
 		}
 		
-		void setX(int x) { this.x = x; }
+		private void setX(int x) { this.x = x; }
 		
-		int getX() { return x; }
+		private int getX() { return x; }
 		
-		void setY(int y) { this.y = y; }
+		private void setY(int y) { this.y = y; }
 		
-		int getY() { return y; }
+		private int getY() { return y; }
 	}
 
 }

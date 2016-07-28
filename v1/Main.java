@@ -17,7 +17,7 @@ public class Main {
 //		Player c1 = Player.constructComputerPlayer("CPU 1", '1', 4);
 //		Player c2 = Player.constructComputerPlayer("CPU 2", '2', 1);
 //		Player p1 = Player.constructHumanPlayer("Player 1", 'P');
-//		runner.setUpDebug(4, 4, c1, p1, 15);								// 4x4 CYCLES : 24 25	2 WINS: 16, 15
+//		runner.setUpDebug(4, 4, c1, p1, 15);
 //		runner.runGame();
 //		
 ////		Game game = new Game(5, 5);
@@ -31,9 +31,12 @@ public class Main {
 //		
 //		in.close();
 		
+		Player c1 = Player.constructComputerPlayer("CPU 1", '1', 4);
+		Player c2 = Player.constructComputerPlayer("CPU 2", '2', 4);
+		Player p1 = Player.constructHumanPlayer("Player 2", '2');
 		WindowGameRunner runner = new WindowGameRunner();
+		runner.setUp(4, 4, c1, p1);
 		runner.start();
-		
 	}
 	
 }

@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
-public class ConsoleGameRunner {
+public final class ConsoleGameRunner {
 
 	private Game game;
 	private Scanner in;
@@ -212,7 +212,7 @@ public class ConsoleGameRunner {
 		System.out.println("Enter pair of coordinates: ");
 		if(player.isCPU()) {
 			try {
-				Move m = player.thinkOfMove(game);
+				Move m = player.thinkOfMove(game, player.getDiff());
 				System.out.println(m);
 				TimeUnit.MILLISECONDS.sleep(delay);
 				if(game.isEndGame()) TimeUnit.MILLISECONDS.sleep(lateDelay);
@@ -255,4 +255,3 @@ public class ConsoleGameRunner {
 	}
 	
 }
-

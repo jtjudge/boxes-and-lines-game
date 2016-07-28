@@ -31,6 +31,7 @@ class Player {
 		p.wins = 0;
 		p.hashcode = 0;
 		p.isCPU = false;
+		p.strategy = new ArrayList<>();	//used only in windowed form
 		return p;
 	}
 	
@@ -49,11 +50,22 @@ class Player {
 		return p;
 	}
 
-	Move thinkOfMove(Game game) {
+	Move thinkOfMove(Game game, int diff) {
 		if(strategy.isEmpty()) {
 			strategy = game.analyze(diff);
+			for(Move m : strategy) {
+				m.setStrategized(true);
+			}
 		}
-		return strategy.remove(0);
+		Move m = strategy.remove(0);
+		return m;
+	}
+	
+	void addToStrategy(Move m) {
+		if(!strategy.contains(m)) {
+			strategy.add(m);
+			m.setStrategized(true);
+		}
 	}
 	
 	String getName() { return this.name; }
@@ -71,6 +83,10 @@ class Player {
 	void winsUp() { this.wins++; }
 	
 	int getWins() { return this.wins; }
+	
+	boolean hasStrategy() { return !this.strategy.isEmpty(); }
+	
+	Move doStrategy() { return this.strategy.remove(0); }
 	
 	@Override
 	public boolean equals(Object o) {
@@ -100,7 +116,5 @@ class Player {
 				"\nMark: " + Character.toString(this.mark) +
 				"\nScore: " + this.score;
 	}
-	
-	
 	
 }

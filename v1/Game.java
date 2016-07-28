@@ -11,8 +11,8 @@ class Game {
 
 	private final int rows;
 	private final int cols;
-	private static final int ROW_LIMIT = 8;
-	private static final int COL_LIMIT = 25;
+	private static final int ROW_LIMIT = Integer.MAX_VALUE;
+	private static final int COL_LIMIT = Integer.MAX_VALUE;
 	
 	private int spacesLeft;
 	
@@ -90,6 +90,7 @@ class Game {
 		legalMoves.remove(m.toString());
 		nonChains.remove(m);
 		m.makeUnavailable();
+		m.setStrategized(false);
 		mostRecent = m;
 		if(left != null && left.rankUp(p.getMark())) {
 			num++;
@@ -511,10 +512,10 @@ class Game {
 	}
 	
 	private String parse(int p1r, int p1c, int p2r, int p2c) {
-		int r1 = p1r + 1, r2 = p2r + 1;
+		char r1 = (char)(p1r + 48 + 1), r2 = (char)(p2r + 48 + 1);
 		char c1 = (char)(p1c + 65), c2 = (char)(p2c + 65);
-		return  Character.toString(c1) + r1 + ", " +
-				Character.toString(c2) + r2;
+		return  Character.toString(c1) + Character.toString(r1) + ", " +
+				Character.toString(c2) + Character.toString(r2);
 	}
 	
 	private void connectMovesToSpaces() {

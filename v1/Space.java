@@ -79,7 +79,5 @@ class Space {
 	public String toString() {
 		return "" + this.index;
 	}
-	
-	
-	
+
 }
