@@ -1,9 +1,9 @@
 package jtjudge.Boxes.v1;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Random;
-import java.util.Stack;
 
 /**
  * @author jtjudge
@@ -20,16 +20,22 @@ import java.util.Stack;
  */
 public class Player {
 	
-	/**
-	 * Game session in which this player is participating.
-	 */
-	private Game game;
-
+	
+	
+	//FIELDS
+	
+	
+	
 	/**
 	 * Name of this player.
 	 */
 	private String name;
 	
+	/**
+	 * Game session in which this player is participating.
+	 */
+	private Game game;
+
 	/**
 	 * Mark to be displayed on spaces filled by this player.
 	 */
@@ -53,42 +59,79 @@ public class Player {
 	//used by Lv 4-5 CPUs
 	private ArrayList<Move> strategy;
 	
-	/**
-	 * Constructs a human player in a given game with a given name and mark.
-	 * @param game
-	 *  game session in which this player is participating
-	 * @param name
-	 *  name of this player
-	 * @param mark
-	 *  signature to be displayed on spaces filled by this player
-	 */
-	public Player(Game game, String name, char mark) {
-		this.game = game;
-		this.name = name;
-		this.mark = mark;
-		this.score = 0;
-		this.isCPU = false;
+	public static ArrayList<Player> activePlayers = new ArrayList<>();
+	
+	private static int playerTurnIndex = 0;
+	
+	
+	
+	//CONSTRUCTORS / FACTORIES
+	
+	
+	
+	private Player() {
+		//suppress default constructor
 	}
 	
-	/**
-	 * Makes a CPU player with a given name, mark, and difficulty value 1 - 3.
-	 * @param game
-	 *  game session in which this CPU player is participating
-	 * @param name
-	 *  name of this CPU player
-	 * @param mark
-	 *  mark to be displayed on spaces filled by this CPU player
-	 * @param diff
-	 *  difficulty level of this CPU
-	 */
-	public Player(Game game, String name, char mark, int diff) {
-		this.game = game;
-		this.name = name;
-		this.mark = mark;
-		this.diff = diff;
-		this.score = 0;
-		this.isCPU = true;
-		this.strategy = new ArrayList<>();
+	public static Player constructHumanPlayer(Game game, String name, char mark)
+			throws IllegalArgumentException {
+		if(game == null || name == null || !game.isActive()) 
+			throw new IllegalArgumentException();
+		Player p = new Player();
+		p.name = name;
+		p.game = game;
+		p.mark = mark;
+		p.score = 0;
+		p.isCPU = false;
+		if(activePlayers.contains(p)) {
+			throw new IllegalArgumentException();
+		}
+		activePlayers.add(p);
+		if(activePlayers.size() == 1) {
+			game.setFirstPlayer(changeTurn());
+		}
+		return p;
+	}
+	
+	public static Player constructComputerPlayer(Game game, String name, char mark, Integer diff)
+			throws IllegalArgumentException {
+		if(game == null || name == null || diff == null || !game.isActive())
+			throw new IllegalArgumentException();
+		Player p = new Player();
+		p.name = name;
+		p.game = game;
+		p.mark = mark;
+		p.score = 0;
+		p.isCPU = true;
+		p.diff = diff;
+		p.strategy = new ArrayList<>();
+		if(activePlayers.contains(p)) {
+			throw new IllegalArgumentException();
+		}
+		activePlayers.add(p);
+		if(activePlayers.size() == 1) {
+			game.setFirstPlayer(changeTurn());
+		}
+		return p;
+	}
+	
+	
+	
+	//KEY METHODS
+	
+	
+	
+	public static Player changeTurn() {
+		if(activePlayers.isEmpty()) throw new IllegalStateException();
+		playerTurnIndex++;
+		if(playerTurnIndex == activePlayers.size()) playerTurnIndex = 0;
+		Player p = activePlayers.get(playerTurnIndex);
+		return p;
+	}
+	
+	public static boolean removePlayer(Player p) {
+		if(activePlayers.isEmpty()) throw new IllegalArgumentException();
+		return activePlayers.remove(p);
 	}
 	
 	/**
@@ -99,105 +142,155 @@ public class Player {
 	 *  CPU's best move
 	 */
 	public Move thinkOfMove() {
-		if(!strategy.isEmpty()) return strategy.remove(0);
-		ArrayList<Move> moves = this.game.getMoves();
-		//analyze every move in the game
-		for(Move move : moves) {
-			move.analyze(diff);
-		}
-		//ensures moves with greater cost are later in the list
-		Comparator<Move> c = new Comparator<Move>() {
-			@Override
-			public int compare(Move m, Move n) {
-				return m.cost - n.cost;
-			}
-		};
-		moves.sort(c);
-		//if there are no moves that can be made without cost, the late game has begun
-		if(moves.get(0).cost > 0) this.game.isLateGame = true;
-		//if player is at least a level 3 CPU in the late game, do a predictive analysis
-		//on moves with costs
-//		if(diff >= 3 && this.game.isLateGame) {
-//			for(Move move : moves) {
-//				if(move.cost > 0) {
-//					predictCost(move);
-//				}
-//			}	
-//			//sort the moves again
-//			moves.sort(c);
-//			//create the chains currently on the board
-//			ArrayList<Chain> chains = getChains(moves);
-//		}
-//		//if player is a level 4 CPU in the late game, and there are captures available, form the
-//		//sequence of captures
-//		if(diff == 4 && this.game.isLateGame) {	
-//			if(moves.get(0).cost < 0) {
-//				strategize(moves);
-//				return strategy.remove(0);
-//			}
-//		}
-		//check for multiple most efficient moves
-		int count = 0;
-		for(int i = 0, j = 1; j < moves.size(); i++, j++) {
-			if(moves.get(i).cost != moves.get(j).cost) {
-				break;
-			}
-			count++;
-		}
-		if(count == 0) {	//there is only one most efficient move
-			Move m = moves.get(0);
-			m.setPlayer(this);
-			return m;
-		} else {			//pick one at random
-			Random gen = new Random();
-			int index = gen.nextInt(count);
-			Move m = moves.get(index);
+		if(strategy.size() != 0) {
+			Move m = strategy.remove(0);
 			m.setPlayer(this);
 			return m;
 		}
+		if(diff == 1 || diff == 2) {
+			ArrayList<Move> best = new ArrayList<>();
+			int mCost, minCost = Integer.MAX_VALUE;
+			for(Move m : Move.movesLeft) {
+				m.calculateBasicCost(diff);
+				mCost = m.getCost();
+				if(mCost < minCost) {
+					minCost = mCost;
+					best.clear();
+					best.add(m);
+				} else if(mCost == minCost) {
+					best.add(m);
+				}
+			}
+			if(best.size() > 1) {
+				Move m = best.get(new Random().nextInt(best.size()));
+				m.setPlayer(this);
+				return m;
+			}
+			Move m = best.get(0);
+			m.setPlayer(this);
+			return m;
+		} else if(diff == 3 || diff == 4) {
+			ArrayList<Chain> openChains = new ArrayList<>();
+			//if every move is in chains
+			if(this.game.isEndGame()) {
+				//start the end game
+				//find all the open chains and the smallest closed chain
+				Chain bestClosed = null;
+				int cSize, minSize = Integer.MAX_VALUE;
+				for(Chain c : Chain.activeChains) {
+					cSize = c.getNumMoves();
+					if(!c.isClosed()) {
+						openChains.add(c);
+					} else {
+						if(cSize < minSize) {
+							minSize = cSize;
+							bestClosed = c;
+						}
+					}
+				}
+				//DEBUG
+				if(bestClosed == null) {
+					System.out.println("Smallest closed: none");
+				} else {
+					System.out.println("Smallest closed: " + bestClosed.getID());
+				}
+				//if all chains are closed, open the smallest chain
+				if(openChains.isEmpty()) {
+					if(bestClosed == null) throw new IllegalStateException();
+					Move m = bestClosed.getMembers().get(0);
+					m.setPlayer(this);
+					return m;
+				//if any chains are open
+				} else {
+					if(diff == 3) {
+						//if Lv 3, take every open chain
+						for(Chain c : openChains)
+							for(Move m : c.getMembers()) {
+								this.strategy.add(m);
+							}
+						Move m = this.strategy.remove(0);
+						m.setPlayer(this);
+						return m;
+					} else {
+						//If the open chains only have one space, or if the smallest closed 
+						//chain (the one this player will be left to capture) has fewer spaces than
+						//the number of spaces this player will leave the next player, it is not 
+						//worth it to leave the next player any spaces.
+						int numOpen = 0;
+						for(Chain c: openChains) {
+							numOpen += c.getNumSpaces();
+						}
+						if(numOpen == openChains.size() || bestClosed == null ||
+								bestClosed.getNumSpaces() < 2 || Player.activePlayers.size() > 2) {
+							//take everything
+							for(Chain c1: openChains) {
+								for(Move m : c1.getMembers()) {
+									this.strategy.add(m);
+								}
+							}
+							Move m = this.strategy.remove(0);
+							m.setPlayer(this);
+							return m;
+						} else {
+							//sort by chain size in ascending order
+							Comparator<Chain> comp = new Comparator<Chain>() {
+								@Override
+								public int compare(Chain c1, Chain c2) {
+									return c1.getNumMoves() - c2.getNumMoves();
+								}
+							};
+							Collections.sort(openChains, comp);
+							//make all moves but the second to last (leaving two spaces)
+							ArrayList<Move> moves = new ArrayList<>();
+							for(Chain c1: openChains) {
+								for(Move m : c1.getMembers()) {
+									moves.add(m);
+								}
+							}
+							for(int i = 0; i < moves.size(); i++) {
+								if(i != moves.size() - 2) {
+									this.strategy.add(moves.get(i));
+								}
+							}
+							Move m = this.strategy.remove(0);
+							m.setPlayer(this);
+							return m;
+						}
+					}
+				}
+			} else {
+				//find the open chains
+				for(Chain c : Chain.activeChains) {
+					if(!c.isClosed()) {
+						openChains.add(c);
+					}
+				}
+				//if there are any chains open, take every one of them
+				if(!openChains.isEmpty()) {
+					for(Chain open : openChains) {
+						for(Move m : open.getMembers()) {
+							this.strategy.add(m);
+						}
+					}
+					Move m = this.strategy.remove(0);
+					m.setPlayer(this);
+					return m;
+				} else {
+					//return a random nonchain move
+					int i = new Random().nextInt(Move.nonChains.size());
+					int j = 0;
+					for(Move m : Move.nonChains) {
+						if(i == j++) {
+							m.setPlayer(this);
+							return m;
+						}
+					}
+				}
+				return null;
+			}
+		}
+		return null;
 	}
-	
-	/*
-	 * Cost-analysis algorithms and high-level strategies
-	 * 
-	 * After a certain point in the game, making any move can result in a sequence
-	 * of captures by the opponent. Any sequence of spaces that is vulnerable after
-	 * the player's move must be included in a true cost analysis of that move.
-	 * 
-	 * High-level CPU players must shift focus from the analysis of single moves
-	 * to the analysis of move sequences during the later parts of the game.
-	 * 
-	 * Furthermore, a high-level CPU must account for sequences that are vulnerable
-	 * after a sequence of captures by the CPU itself, and weigh the benefits of its
-	 * captures against those that will be made by the next player.
-	 * 
-	 * The goal of a level 3 CPU is to capture available sequences in their entirety
-	 * while limiting the next player to the shortest sequences on the board.
-	 * 
-	 * The goal of a level 4 CPU is to control the game by capturing a sequence until
-	 * it is reduced to two rank 3 spaces--meaning the next player only has the option of
-	 * capturing the two spaces before setting up the next sequence.
-	 * 
-	 * 
-	 * 
-	 * For each of these algorithms, make a "fake" copy of the spaces in this game, 
-	 * and use it to create a "fake" representation of the moves left in this game.
-	 * 
-	 * cost analysis algorithm (lv 3+ players)
-	 * 
-	 * execute this move's fake version
-	 * make a stack of all the fakemoves that now have rank 3 spaces
-	 * while the stack has fakemoves
-	 * 	 	cost++
-	 *   	execute each fakemove, remove fakemove from stack
-	 *   	add fakemoves that now have rank 3 fakespaces to the stack
-	 * return cost
-	 * 
-	 * strategy algorithm (lv 4+ players)
-	 * 
-	 * 
-	 */
-	
 	
 	/**
 	 * Increments this player's score.
@@ -206,58 +299,55 @@ public class Player {
 		this.score++;
 	}
 	
-	/**
-	 * Returns the game session of this player.
-	 * @return
-	 *  player's game session
-	 */
-	public Game getGame() {
-		return this.game;
+	
+	
+	//GETTERS
+	
+	
+	
+	public Game getGame() { return this.game; }
+	
+	public String getName() { return this.name; }
+	
+	public char getMark() { return this.mark; }
+	
+	public int getScore() { return this.score; }
+	
+	public boolean isCPU() { return isCPU; }
+	
+	public int getDiff() { return this.diff; }
+	
+	
+	
+	//OVERRIDDEN
+	
+	
+	
+	@Override
+	public boolean equals(Object o) {
+		if(o == null || !(o instanceof Player)) return false;
+		Player p = (Player) o;
+		//there cannot be multiple players with the same name
+		return this.name.equals(p.name);
 	}
 	
-	/**
-	 * Returns this player's name.
-	 * @return
-	 *  player's name
-	 */
-	public String getName() {
-		return this.name;
+	@Override
+	public int hashCode() {
+		int prime = 19;
+		int result = 1;
+		for(int i = 0; i < this.name.length(); i++) {
+				result = prime * result + (int) this.name.charAt(i);
+		}
+		return result;
 	}
 	
-	/**
-	 * Returns the character the game draws in spaces filled by this player.
-	 * @return
-	 *  player's mark
-	 */
-	public char getMark() {
-		return this.mark;
+	@Override
+	public String toString() {
+		return "Name: " + this.name +
+				"\nMark: " + Character.toString(this.mark) +
+				"\nScore: " + this.score;
 	}
 	
-	/**
-	 * Returns this player's score in the game session
-	 * @return
-	 *  player's score
-	 */
-	public int getScore() {
-		return this.score;
-	}
 	
-	/**
-	 * Returns true if the player is a CPU.
-	 * @return
-	 *   player's status as a CPU
-	 */
-	public boolean isCPU() {
-		return isCPU;
-	}
-	
-	/**
-	 * Returns this CPU player's difficulty level. Returns null if player is human.
-	 * @return
-	 *  CPU player's difficulty
-	 */
-	public int getDiff() {
-		return this.diff;
-	}
 	
 }
