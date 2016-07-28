@@ -116,26 +116,26 @@ public class Player {
 		//if there are no moves that can be made without cost, the late game has begun
 		if(moves.get(0).cost > 0) this.game.isLateGame = true;
 		//if player is at least a level 3 CPU in the late game, do a predictive analysis
-		
 		//on moves with costs
-		if(diff >= 3 && this.game.isLateGame) {
-			for(Move move : moves) {
-				if(move.cost > 0) {
-					predictCost(move);
-				}
-			}	
-			//sort the moves again
-			moves.sort(c);
-			
-		}
-		//if player is a level 4 CPU in the late game, and there are captures available, form the
-		//sequence of captures
-		if(diff == 4 && this.game.isLateGame) {	
-			if(moves.get(0).cost < 0) {
-				strategize(moves);
-				return strategy.remove(0);
-			}
-		}
+//		if(diff >= 3 && this.game.isLateGame) {
+//			for(Move move : moves) {
+//				if(move.cost > 0) {
+//					predictCost(move);
+//				}
+//			}	
+//			//sort the moves again
+//			moves.sort(c);
+//			//create the chains currently on the board
+//			ArrayList<Chain> chains = getChains(moves);
+//		}
+//		//if player is a level 4 CPU in the late game, and there are captures available, form the
+//		//sequence of captures
+//		if(diff == 4 && this.game.isLateGame) {	
+//			if(moves.get(0).cost < 0) {
+//				strategize(moves);
+//				return strategy.remove(0);
+//			}
+//		}
 		//check for multiple most efficient moves
 		int count = 0;
 		for(int i = 0, j = 1; j < moves.size(); i++, j++) {
@@ -156,7 +156,6 @@ public class Player {
 			return m;
 		}
 	}
-	
 	
 	/*
 	 * Cost-analysis algorithms and high-level strategies
@@ -199,82 +198,6 @@ public class Player {
 	 * 
 	 */
 	
-	/**
-	 * Counts the number of consecutive captures available after this move is executed.
-	 * Used by a high-level (3+) CPU to determine, out of a selection of costly moves,
-	 * which one will yield the smallest sequence of spaces another player can capture
-	 * on the next turn.
-	 */
-	public void predictCost(Move m) {
-		//clone the spaces
-		Space[][] fakeSpaces = cloneSpaces();
-		//make a list of all the fakeMoves except for the one that corresponds to THIS move
-		ArrayList<fakeMove> fakeMoves = new ArrayList<>();
-		for(Move move : this.game.getMoves()) {
-			if(!(move.equals(m))) {
-				fakeMoves.add(new fakeMove(fakeSpaces, move));
-			}
-		}
-		//get the fakeMove corresponding to this move
-		fakeMove thisOne = new fakeMove(fakeSpaces, m);
-		//execute the fakeMove that corresponds to this move
-		thisOne.execute();
-		//make a stack with all the moves that have rank 3 spaces now
-		Stack<fakeMove> rankThrees = new Stack<>();
-		for(fakeMove fm : fakeMoves) {
-			if(fm.hasRankThree()) rankThrees.push(fm);
-		}
-		//find how many spaces will be lost if this move is executed
-		int cost = 0;
-		while(!rankThrees.isEmpty()) {
-			cost++;
-			fakeMove r3 = rankThrees.pop();
-			fakeMoves.remove(r3);
-			r3.execute();
-			for(fakeMove fm : fakeMoves) {
-				if(fm.hasRankThree()) rankThrees.push(fm);
-			}
-		}
-		m.cost = cost;
-	}
-	
-	/**
-	 * Counts the number of captures possible from the lowest-cost move, returns the sequence
-	 * and limits the next player's captures to two. Used by a high-level (4+) player to control
-	 * the game.
-	 */
-	private void strategize(ArrayList<Move> moves) {
-		//clone the spaces
-		Space[][] fakeSpaces = cloneSpaces();
-		//make a list of all the fakeMoves
-		ArrayList<fakeMove> fakeMoves = new ArrayList<>();
-		for(Move move : moves) {
-			fakeMoves.add(new fakeMove(fakeSpaces, move));
-		}
-		//make a stack with all the moves that have rank 3 spaces
-		Stack<fakeMove> rankThrees = new Stack<>();
-		//assumes moves are sorted
-		rankThrees.push(fakeMoves.get(0));
-		//go through the capture sequence
-		while(!rankThrees.isEmpty()) {
-			fakeMove fm = rankThrees.pop();
-			fakeMoves.remove(fm);
-			strategy.add(fm.move);
-			fm.execute();
-			for(fakeMove m : fakeMoves) {
-				if(m.hasRankThree()) rankThrees.push(m);
-			}
-		}
-		for(Move m : strategy) {
-			m.setPlayer(this);
-		}
-		//remove the second to last move from the strategy if necessary
-		if(strategy.size() != moves.size()) {
-			if(strategy.size() > 1) {
-				strategy.remove(strategy.size() - 2);
-			}
-		}
-	}
 	
 	/**
 	 * Increments this player's score.
@@ -337,50 +260,4 @@ public class Player {
 		return this.diff;
 	}
 	
-	//helper method for cost prediction methods
-	private Space[][] cloneSpaces() {
-		Space[][] copy = new Space[this.game.cols][this.game.rows];
-		for(int i = 0; i < this.game.rows; i++) {
-			for(int j = 0; j < this.game.cols; j++) {
-				copy[j][i] = new Space(this.game.getSpaces()[j][i]);
-			}
-		}
-		return copy;
-	}
-	
-	//to do a high-level cost analysis of any move, we only ever need to know the spaces affected, so 
-	//there is no need to deep copy the entire object. This class holds copies of the left and 
-	//right spaces and the cost for a given move. This allows the cost analysis methods to work without
-	//modifying the actual game.
-	private class fakeMove {
-		protected Space left;
-		protected Space right;
-		protected Move move;
-		
-		protected fakeMove(Space[][] fakeSpaces, Move move) {
-			this.move = move;
-			this.left = getFakeSpace(fakeSpaces, move.getLine().getLeft());
-			this.right = getFakeSpace(fakeSpaces, move.getLine().getRight());
-		}
-	
-		protected Space getFakeSpace(Space[][] spaces, Space s) {
-			if(s == null) return null;
-			//names have form "i, j" so skip the ", "
-			int i = s.getName().charAt(0) - 49;
-			int j = s.getName().charAt(3) - 49;
-			return spaces[j][i];
-		}
-		
-		protected void execute() {	//ranks up the two fake spaces
-			if(left != null) left.rankUp(null);
-			if(right != null) right.rankUp(null);
-		}
-		
-		protected boolean hasRankThree() {
-			boolean bool = false;
-			if(left != null && left.getRank() == 3) bool = true;
-			if(right != null && right.getRank() == 3) bool = true;
-			return bool;
-		}
-	}
 }

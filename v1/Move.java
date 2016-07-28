@@ -38,6 +38,8 @@ public class Move {
 	 */
 	protected int cost;
 	
+	protected Chain chain;
+	
 	/**
 	 * Constructs a Move to be made by a human player. Coordinates and
 	 * the player making the move are stored. The coordinates are then 
@@ -184,6 +186,13 @@ public class Move {
 	 */
 	public Line getLine() {
 		return this.line;
+	}
+	
+	//for debugging
+	public String getName() {
+		String p1 = this.line.a.name;
+		String p2 = this.line.b.name;
+		return p1 + ", " + p2;
 	}
 	
 	/**

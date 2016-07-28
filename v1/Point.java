@@ -82,4 +82,3 @@ public class Point {
 		return other.row == this.row && other.col == this.col;
 	}
 }
-

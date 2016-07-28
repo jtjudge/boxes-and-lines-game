@@ -1,6 +1,7 @@
 package jtjudge.Boxes.v1;
 
 import java.util.ArrayList;
+import java.util.Stack;
 
 /**
  * A Game object represents the state of a game session turn after turn. A game contains
@@ -42,6 +43,9 @@ public class Game {
 	 */
 	private Space[][] spaces;
 	
+	//for the chain builder method
+	private fakeSpace[][] fakeSpaces;
+	
 	/**
 	 * The grid of all corner points on the board.
 	 */
@@ -75,6 +79,8 @@ public class Game {
 	//for use by high-level CPU players
 	protected boolean isLateGame;
 	
+	private ArrayList<Chain> chains;
+	
 	/**
 	 * Constructs a new Game with the given amount of rows and columns
 	 * of spaces.
@@ -94,6 +100,7 @@ public class Game {
 		this.turn = 0;
 		this.lines = new ArrayList<>();
 		this.isLateGame = false;
+		this.chains = new ArrayList<>();
 		//create the spaces
 		this.spaces = new Space[cols][rows];
 		for(int i = 0; i < rows; i++) {
@@ -101,6 +108,7 @@ public class Game {
 				this.spaces[j][i] = new Space(i, j);
 			}
 		}
+		this.fakeSpaces = new fakeSpace[cols][rows];
 		//create the points
 		this.points = new Point[cols + 1][rows + 1];
 		for(int i = 0; i < rows + 1; i++) {
@@ -178,6 +186,8 @@ public class Game {
 		int num = line.draw();
 		this.lines.add(line);
 		this.spacesLeft -= num;
+		updateCopy();
+		updateChains(m);
 		if(num == 0) {
 			turn++;
 			if(turn == players.size()) turn = 0;
@@ -210,6 +220,10 @@ public class Game {
 	 */
 	public ArrayList<Move> getMoves() {
 		return this.moves;
+	}
+
+	public ArrayList<Chain> getChains() {
+		return this.chains;
 	}
 	
 	/**
@@ -266,6 +280,130 @@ public class Game {
 	 */
 	public boolean isActive() {
 		return spacesLeft != 0;
+	}
+	
+	/**
+	 * Updates the move chains in this game session.
+	 */
+	private void updateChains(Move move) {
+
+		//IF THIS MOVE IS IN A CHAIN, UPDATE THAT CHAIN
+		
+			//if the move is part of an existing chain
+			Chain c = move.chain;
+			if(c != null) {
+				//remove it from the chain
+				c.removeMove(move);
+				//if chain was closed, it is now open
+				if(c.isClosed()) c.open();
+				//if chain is now empty, remove it from the set of chains in the game
+				if(c.isEmpty()) chains.remove(c);
+			}
+		
+		//BUILD NEW CHAINS WITH NON-CHAIN MOVES IF NEEDED
+		
+			//make a list of the available moves not currently in chains
+			ArrayList<Move> nonchains = new ArrayList<>();
+			for(Move m : this.getMoves()) {
+				if(m.chain == null) nonchains.add(m);
+			}
+			//for every non-chain move
+			while(!nonchains.isEmpty()) {
+				//make a list of all the non-chain fakeMoves except for the one that
+				//corresponds to THIS non-chain move
+				Move nc = nonchains.get(0);
+				ArrayList<fakeMove> fakeMoves = new ArrayList<>();
+				for(Move m : nonchains) {
+					if(!(m.equals(nc))) {
+						fakeMoves.add(new fakeMove(m));
+					}
+				}
+				//get the fakeMove corresponding to this non-chain move
+				fakeMove thisOne = new fakeMove(nc);
+				//execute the fakeMove
+				thisOne.execute();
+				//remove it from the set
+				nonchains.remove(nc);
+				//make a stack with all the fakeMoves that have rank 3 spaces now
+				Stack<fakeMove> rankThrees = new Stack<>();
+				for(fakeMove fm : fakeMoves) {
+					if(fm.hasRankThree()) rankThrees.push(fm);
+				}
+				//start a new chain with this non-chain move
+				Chain ch = new Chain(nc);
+				//while there are rank 3 fakeMoves left
+				while(!rankThrees.isEmpty()) {
+					fakeMove r3 = rankThrees.pop();
+					//remove it from the set of fakeMoves
+					fakeMoves.remove(r3);
+					//remove it from set of potential chain origins
+					nonchains.remove(r3.move);
+					//add it to the current chain
+					ch.addMove(r3.move);
+					//execute it
+					r3.execute();
+					//add the resulting rank 3 moves to the stack
+					for(fakeMove fm : fakeMoves) {
+						if(fm.hasRankThree()) rankThrees.push(fm);
+					}
+				}
+				if(ch.getNumMoves() > 1) {
+					chains.add(ch);
+				}
+			}
+
+		//IF THIS MOVE MERGES TWO CHAINS, UPDATE THOSE CHAINS
+		
+			Space left = move.getLine().getLeft();
+			Space right = move.getLine().getRight();
+			Chain one = null, two = null, three = null, four = null;
+			//find chains that 
+			if(left != null && left.getRank() >= 2) {
+				for(Chain ch: chains) {
+					if(ch.hasEndSpace(left)) {
+						if(one == null) {
+							one = ch;
+						} else {
+							two = ch;
+						}
+					}
+				}
+			}
+			if(right != null && right.getRank() >= 2) {
+				for(Chain ch: chains) {
+					if(ch.hasEndSpace(right)) {
+						if(three == null) {
+							three = ch;
+						} else {
+							four = ch;
+						}
+					}
+				}
+			}
+			//merge
+			if(one != null && two != null) {
+				for(Move m : two.getMembers()) {
+					two.removeMove(m);
+					one.addMove(m);
+				}
+				chains.remove(two);
+			}
+			if(three != null && four != null) {
+				for(Move m : four.getMembers()) {
+					four.removeMove(m);
+					three.addMove(m);
+				}
+				chains.remove(four);
+			}
+	}
+
+	//keeps the fakeSpaces in sync with the real spaces
+	private void updateCopy() {
+		for(int i = 0; i < this.rows; i++) {
+			for(int j = 0; j < this.cols; j++) {
+				fakeSpaces[j][i] = new fakeSpace(this.getSpaces()[j][i]);
+			}
+		}
 	}
 	
 	/** 
@@ -397,6 +535,61 @@ public class Game {
 		//return the list of lines
 		return gameState;
 		
+	}
+	
+	
+	//the fake copies of the spaces simply need to contain the ranks
+	private class fakeSpace {
+		protected int rank;
+		protected Space space;
+		
+		protected fakeSpace(Space s) {
+			this.space = s;
+			this.rank = s.getRank();
+		}
+		
+		protected int getRank() {
+			return this.rank;
+		}
+		
+		protected void rankUp() {
+			rank++;
+		}
+	}
+	
+	//for the fake version of any move, we only ever need the copies of the spaces affected and a
+	//reference to the move itself; there is no need to deep copy the entire object. This class
+	//allows the chain-building method to work without modifying the actual game.
+	private class fakeMove {
+		protected fakeSpace left;
+		protected fakeSpace right;
+		protected Move move;
+		
+		protected fakeMove(Move move) {
+			this.move = move;
+			this.left = getFakeSpace(move.getLine().getLeft());
+			this.right = getFakeSpace(move.getLine().getRight());
+		}
+	
+		protected fakeSpace getFakeSpace(Space s) {
+			if(s == null) return null;
+			//names have form "i, j" so skip the ", "
+			int i = s.getName().charAt(0) - 49;
+			int j = s.getName().charAt(3) - 49;
+			return fakeSpaces[j][i];
+		}
+		
+		protected void execute() {	//ranks up the two fake spaces
+			if(left != null) left.rankUp();
+			if(right != null) right.rankUp();
+		}
+		
+		protected boolean hasRankThree() {
+			boolean bool = false;
+			if(left != null && left.getRank() == 3) bool = true;
+			if(right != null && right.getRank() == 3) bool = true;
+			return bool;
+		}
 	}
 	
 }

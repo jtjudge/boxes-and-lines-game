@@ -134,6 +134,9 @@ public class GameRunnerConsole {
 			for(String s: lines) {
 				System.out.println(s);
 			}
+			for(Chain c: game.getChains()) {
+				System.out.println(c.toString());
+			}
 			System.out.println();
 			System.out.println();
 			System.out.println();
