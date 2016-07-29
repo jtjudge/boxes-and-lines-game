@@ -85,7 +85,7 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 	
 	@Override
 	public void run() {
-		final long targetFrameTime = 1000000000 / 60;
+		final long targetFrameTime = 1_000_000_000 / 60;
 		long frameTime = 0, thisSecond = 0, now, dt;
 		int ticks = 0, frames = 0;
 		while(running) {
@@ -103,7 +103,7 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 				thisSecond += dt;
 				frameTime = 0;
 			}
-			if(thisSecond >= 1000000000) {
+			if(thisSecond >= 1_000_000_000) {
 				System.out.println(ticks + ", " + frames);
 				System.out.println(game.getActiveChains());
 				ticks = 0;
