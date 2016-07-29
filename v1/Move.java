@@ -7,12 +7,11 @@ class Move {
 	private boolean isAvailable;
 	private boolean isStrategized;
 	private int hashcode;	//cached after first call to hashCode()
-
+	
 	private Space left, right;
 	private Chain chain;
-
 	private Move next;
-	
+
 	Move(String name, int index, Move next) {
 		this.name = name;
 		this.index = index;
@@ -21,7 +20,7 @@ class Move {
 		this.hashcode = 0;
 		this.next = next;
 	}
-	
+
 	int calculateBasicCost(int diff) {
 		int cost = 0, lrank, rrank;
 		if(this.left == null) {

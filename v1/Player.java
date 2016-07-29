@@ -9,13 +9,13 @@ class Player {
 	private int score;
 	private int wins;
 	private int hashcode;	//cached after first call to hashCode()
-	
+
 	private boolean isCPU;
 	private int diff;
-	
+
 	private static final int MIN_DIFF = 1;
 	private static final int MAX_DIFF = 5;
-	
+
 	private ArrayList<Move> strategy;	//used by Lv 4-5 CPUs
 
 	private Player() {

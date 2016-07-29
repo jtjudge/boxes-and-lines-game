@@ -6,17 +6,11 @@ import java.util.Collections;
 class Chain {
 
 	private char index;
-	
 	private ArrayList<Move> members;
-	
 	private ArrayList<Space> allSpaces;
-	
 	private ArrayList<Space> sharedSpaces;
-	
 	private ArrayList<Space> ends;
-	
 	private boolean open;
-	
 	private boolean isCycle;
 	
 	Chain(Move m1, Move m2) {
