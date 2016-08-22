@@ -1,5 +1,6 @@
 package jtjudge.Boxes.v1;
 
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -11,6 +12,8 @@ class Game {
 
 	private final int rows;
 	private final int cols;
+	
+	//DEBUG
 	private static final int ROW_LIMIT = Integer.MAX_VALUE;
 	private static final int COL_LIMIT = Integer.MAX_VALUE;
 	
@@ -92,13 +95,13 @@ class Game {
 		m.makeUnavailable();
 		m.setStrategized(false);
 		mostRecent = m;
-		if(left != null && left.rankUp(p.getMark())) {
+		if(left != null && left.rankUp(p.getMark(), p.getColor())) {
 			num++;
 			p.scoreUp();
 		} else if(left != null && left.getRank() == 2) {
 			buildChain(left);
 		}
-		if(right != null && right.rankUp(p.getMark())) {
+		if(right != null && right.rankUp(p.getMark(), p.getColor())) {
 			num++;
 			p.scoreUp();
 		} else if(right != null && right.getRank() == 2) {
@@ -120,7 +123,9 @@ class Game {
 	boolean add(Player p) {
 		if(players.contains(p)) return false;
 		if(players.isEmpty()) currentTurn = p;
-		return players.add(p);
+		boolean b = players.add(p);
+		assignColors();
+		return b;
 	}
 	
 	boolean remove(Player p) {
@@ -688,4 +693,11 @@ class Game {
 		}
 	}
 	
+	private void assignColors() {
+		for(int i = 0; i < players.size(); i++) {
+			Random r = new Random();
+			players.get(i).setColor(new Color(r.nextFloat(), 
+					r.nextFloat(), r.nextFloat()));
+		}
+	}
 }

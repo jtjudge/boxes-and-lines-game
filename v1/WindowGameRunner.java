@@ -252,8 +252,7 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 					drawRight(getGraphics(), hShift, vShift);
 				}
 				if(s.isFull()) {
-					if(s.getMark() == '1') g.setColor(Color.BLUE);
-					if(s.getMark() == '2') g.setColor(Color.RED);
+					g.setColor(s.getColor());
 					drawSpace(g, hShift, vShift);
 				}
 			}

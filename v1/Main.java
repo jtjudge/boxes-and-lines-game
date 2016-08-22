@@ -1,7 +1,6 @@
 package jtjudge.Boxes.v1;
 
-import java.util.Scanner;
-import java.util.Random;
+import java.awt.Color;
 
 public class Main {
 
@@ -31,11 +30,11 @@ public class Main {
 //		
 //		in.close();
 		
-		Player c1 = Player.constructComputerPlayer("CPU 1", '1', 4);
-		Player c2 = Player.constructComputerPlayer("CPU 2", '2', 4);
-		Player p1 = Player.constructHumanPlayer("Player 2", '2');
+		Player c1 = Player.constructComputerPlayer("CPU 1", '1', Color.RED, 4);
+		Player c2 = Player.constructComputerPlayer("CPU 2", '2', Color.BLUE, 4);
+		Player p1 = Player.constructHumanPlayer("Player 2", '2', Color.BLUE);
 		WindowGameRunner runner = new WindowGameRunner();
-		runner.setUp(4, 4, c1, p1);
+		runner.setUp(4, 4, c1, c2);
 		runner.start();
 	}
 	

@@ -1,11 +1,13 @@
 package jtjudge.Boxes.v1;
 
+import java.awt.Color;
 import java.util.ArrayList;
 
 class Player {
 
 	private String name;
 	private char mark;
+	private Color color;
 	private int score;
 	private int wins;
 	private int hashcode;	//cached after first call to hashCode()
@@ -22,11 +24,12 @@ class Player {
 		//suppress default constructor
 	}
 	
-	static Player constructHumanPlayer(String name, char mark) {
+	static Player constructHumanPlayer(String name, char mark, Color color) {
 		if(name.isEmpty()) throw new IllegalArgumentException();
 		Player p = new Player();
 		p.name = name;
 		p.mark = mark;
+		p.color = color;
 		p.score = 0;
 		p.wins = 0;
 		p.hashcode = 0;
@@ -35,12 +38,14 @@ class Player {
 		return p;
 	}
 	
-	static Player constructComputerPlayer(String name, char mark, int diff) {
+	static Player constructComputerPlayer(String name, char mark,
+			Color color, int diff) {
 		if(name.isEmpty() || diff > MAX_DIFF || diff < MIN_DIFF)
 			throw new IllegalArgumentException();
 		Player p = new Player();
 		p.name = name;
 		p.mark = mark;
+		p.color = color;
 		p.score = 0;
 		p.wins = 0;
 		p.hashcode = 0;
@@ -71,6 +76,10 @@ class Player {
 	String getName() { return this.name; }
 	
 	char getMark() { return this.mark; }
+	
+	Color getColor() { return this.color; }
+	
+	void setColor(Color color) { this.color = color; }
 	
 	boolean isCPU() { return isCPU; }
 	

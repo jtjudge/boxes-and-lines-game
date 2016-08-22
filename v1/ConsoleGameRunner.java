@@ -86,7 +86,7 @@ public final class ConsoleGameRunner {
 					}
 					int level = Integer.parseInt(resp);
 					try {
-						if(!game.add(Player.constructComputerPlayer(name, mark, level)))
+						if(!game.add(Player.constructComputerPlayer(name, mark, null, level)))
 							throw new IllegalStateException();
 						System.out.println("Added " + name + ".");
 						break;
@@ -97,7 +97,7 @@ public final class ConsoleGameRunner {
 					}
 				} else {
 					try {
-						if(!game.add(Player.constructHumanPlayer(name, mark)))
+						if(!game.add(Player.constructHumanPlayer(name, mark, null)))
 							throw new IllegalStateException();
 						System.out.println("Added " + name + ".");
 						break;

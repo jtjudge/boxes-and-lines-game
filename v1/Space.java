@@ -1,5 +1,6 @@
 package jtjudge.Boxes.v1;
 
+import java.awt.Color;
 import java.util.ArrayList;
 
 class Space {
@@ -8,6 +9,7 @@ class Space {
 	private int rank;
 	private boolean full;
 	private char mark;		//stored when space is filled
+	private Color color;
 	private int hashcode;	//cached after first call to hashCode()
 	
 	private Space next;		//for game iterator
@@ -33,11 +35,12 @@ class Space {
 		return this.unmadeMoves.remove(m);
 	}
 	
-	boolean rankUp(char c) {
+	boolean rankUp(char ch, Color color) {
 		if(full) return false;
 		if(++rank == 4) {
 			this.full = true;
-			this.mark = c;
+			this.mark = ch;
+			this.color = color;
 			return true;
 		}
 		return false;
@@ -50,6 +53,8 @@ class Space {
 	boolean isFull() { return this.full; }
 	
 	char getMark() { return this.mark; }
+	
+	Color getColor() { return this.color; }
 	
 	Space getNext() { return this.next; }
 	
