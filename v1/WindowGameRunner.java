@@ -13,6 +13,7 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import javax.swing.JFrame;
@@ -68,9 +69,11 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 		image = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
 	}
 	
-	public void setUp(int rows, int cols, Player p1, Player p2) {
+	public void setUp(int rows, int cols, ArrayList<Player> players) {
 		game = new Game(rows, cols);
-		game.add(p1); game.add(p2);
+		for(Player p : players) {
+			game.add(p);
+		}
 		autoScale();
 	}
 	
@@ -318,28 +321,34 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 	}
 	
 	private void drawText(Graphics g) {
-		g.setFont(new Font("Ubuntu", Font.BOLD, FONT_SIZE * SCALE));
+		g.setFont(new Font("Trebuchet MS", Font.BOLD, FONT_SIZE * SCALE));
 		if(portraitMode) {
+			g.setColor(game.getTurn().getColor());
 			g.drawString("Turn: " + game.getTurn().getName(),
 					2 * F_WIDTH * SCALE / 3, F_HEIGHT * SCALE / 2);
 			if(game.isEndGame()) {
 				int i = 0;
+				g.setColor(Color.WHITE);
 				g.drawString("Scores: ", 2 * F_WIDTH * SCALE / 3,
 						(F_HEIGHT * SCALE / 2) + ++i * (FONT_SIZE * SCALE));
 				for(Player p : game.getPlayers()) {
+					g.setColor(p.getColor());
 					g.drawString(p.getName() + ": " + p.getScore(),
 							2 * F_WIDTH * SCALE / 3, (F_HEIGHT * SCALE / 2) +
 								++i * (FONT_SIZE * SCALE));
 				}
 			}
 		} else {
+			g.setColor(game.getTurn().getColor());
 			g.drawString("Turn: " + game.getTurn().getName(), F_WIDTH * SCALE / 3,
 					3 * F_HEIGHT * SCALE / 4);
 			if(game.isEndGame()) {
 				int i = -1;
+				g.setColor(Color.WHITE);
 				g.drawString("Scores: ", 2 * F_WIDTH * SCALE / 3,
 						(3 * F_HEIGHT * SCALE / 4) + ++i * 56);
 				for(Player p : game.getPlayers()) {
+					g.setColor(p.getColor());
 					g.drawString(p.getName() + ": " + p.getScore(),
 							2 * F_WIDTH * SCALE / 3, (3 * F_HEIGHT * SCALE / 4) +
 								++i * 56);

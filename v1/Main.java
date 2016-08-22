@@ -1,6 +1,7 @@
 package jtjudge.Boxes.v1;
 
 import java.awt.Color;
+import java.util.ArrayList;
 
 public class Main {
 
@@ -32,9 +33,23 @@ public class Main {
 		
 		Player c1 = Player.constructComputerPlayer("CPU 1", '1', Color.RED, 4);
 		Player c2 = Player.constructComputerPlayer("CPU 2", '2', Color.BLUE, 4);
+		Player c3 = Player.constructComputerPlayer("CPU 3", '3', Color.GREEN, 3);
+		Player c4 = Player.constructComputerPlayer("CPU 4", '4', Color.YELLOW, 1);
+		
 		Player p1 = Player.constructHumanPlayer("Player 2", '2', Color.BLUE);
+		
+		ArrayList<Player> players = new ArrayList<>();
+		
+		players.add(c1);
+		players.add(c2);
+		players.add(c3);
+		players.add(c4);
+		
+//		players.add(c1);
+//		players.add(p1);
+		
 		WindowGameRunner runner = new WindowGameRunner();
-		runner.setUp(4, 4, c1, c2);
+		runner.setUp(40, 40, players);
 		runner.start();
 	}
 	
