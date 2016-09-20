@@ -143,7 +143,7 @@ public final class ConsoleGameRunner {
 	
 	//run the game
 	public void runGame() {
-		while(game.isActive()) {
+		while(!game.isFinished()) {
 			System.out.print(game);
 			if(debugMode) {
 				System.out.println("CHAINS:");

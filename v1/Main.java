@@ -31,25 +31,25 @@ public class Main {
 //		
 //		in.close();
 		
-		Player c1 = Player.constructComputerPlayer("CPU 1", '1', Color.RED, 4);
-		Player c2 = Player.constructComputerPlayer("CPU 2", '2', Color.BLUE, 4);
-		Player c3 = Player.constructComputerPlayer("CPU 3", '3', Color.GREEN, 3);
+		Player c1 = Player.constructComputerPlayer("CPU 1", '1', Color.RED, 1);
+		Player c2 = Player.constructComputerPlayer("CPU 2", '2', Color.BLUE, 1);
+		Player c3 = Player.constructComputerPlayer("CPU 3", '3', Color.GREEN, 1);
 		Player c4 = Player.constructComputerPlayer("CPU 4", '4', Color.YELLOW, 1);
 		
-		Player p1 = Player.constructHumanPlayer("Player 2", '2', Color.BLUE);
+		Player p1 = Player.constructHumanPlayer("Player 2", '2', null);
 		
 		ArrayList<Player> players = new ArrayList<>();
 		
 		players.add(c1);
-		players.add(c2);
-		players.add(c3);
-		players.add(c4);
 		
-//		players.add(c1);
-//		players.add(p1);
+//		players.add(c2);
+//		players.add(c3);
+//		players.add(c4);
+		
+		players.add(p1);
 		
 		WindowGameRunner runner = new WindowGameRunner();
-		runner.setUp(40, 40, players);
+		runner.setUp(3, 3, players);
 		runner.start();
 	}
 	

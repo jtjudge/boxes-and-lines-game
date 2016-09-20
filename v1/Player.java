@@ -87,6 +87,8 @@ class Player {
 	
 	void scoreUp() { this.score++; }
 	
+	void resetScore() { this.score = 0; }
+	
 	int getScore() { return this.score; }
 	
 	void winsUp() { this.wins++; }

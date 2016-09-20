@@ -21,21 +21,23 @@ import javax.swing.JFrame;
 public final class WindowGameRunner extends Canvas implements Runnable {
 
 	private static final long serialVersionUID = 1L;
-	
-	private static final int W_RATIO = 16;
-	private static final int H_RATIO = 9;
-	private static final int F_WIDTH = 200;
-	private static final int F_HEIGHT = H_RATIO * F_WIDTH / W_RATIO;
-	private static final int FONT_SIZE = 6;
-	private static final int SCALE = 8;
-	
 	private static final String NAME = "BOXES AND LINES";
 	
-	private static final Color LINE = Color.WHITE;
-	private static final Color CURSOR = Color.GREEN;
-	private static final Color POINT = Color.GRAY;
-	private static final Color CHAIN = Color.ORANGE;
-	private static final Color STRATEGY = Color.CYAN;
+	private static final int
+	W_RATIO = 16,
+	H_RATIO = 9,
+	F_WIDTH = 200,
+	F_HEIGHT = H_RATIO * F_WIDTH / W_RATIO,
+	FONT_SIZE = 6,
+	SCALE = 6;
+	
+	private static final Color
+	LINE = Color.WHITE,
+	CURSOR = Color.GREEN,
+	POINT = Color.GRAY,
+	CHAIN = Color.RED, 
+	STRATEGY = Color.CYAN,
+	TEXT = Color.WHITE;
 	
 	private Game game;
 	private Move cursor;
@@ -44,8 +46,11 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 	private BufferedImage image;
 	
 	private int spaceSize, pointSize;
-	private boolean portraitMode;
-	private boolean running;
+	private boolean
+	running,
+	portraitMode,
+	mouseOnExit, 
+	mouseOnReset;
 	
 	public WindowGameRunner() {
 		running = false;
@@ -108,7 +113,6 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 			}
 			if(thisSecond >= 1_000_000_000) {
 				System.out.println(ticks + ", " + frames);
-				System.out.println(game.getActiveChains());
 				ticks = 0;
 				frames = 0;
 				thisSecond = 0;
@@ -117,7 +121,7 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 	}
 	
 	private void tick() {
-		if(game.isActive()) {
+		if(!game.isFinished()) {
 			Player player = game.getTurn();
 			if(player.isCPU()) {
 				Move m = player.thinkOfMove(game, player.getDiff());
@@ -147,6 +151,46 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 					}
 				}
 			}
+		}
+		mouseOnExit();
+		mouseOnReset();
+		if(mouseOnExit && in.isMousePressed("LeftClick")) {
+			System.exit(0);
+		}
+		if(mouseOnReset && in.isMousePressed("LeftClick")) {
+			ArrayList<Player> players = game.getPlayers();
+			int rows = game.getRows(), cols = game.getCols();
+			game = new Game(rows, cols);
+			for(Player p: players) {
+				p.resetScore();
+				game.add(p);
+			}
+		}
+	}
+	
+	private void mouseOnExit() {
+		int x = in.getX(), y = in.getY();
+		if(portraitMode) {
+			int left = 2 * F_WIDTH * SCALE / 3, right = left + (12 * SCALE),
+					top = F_HEIGHT * SCALE / 3, bottom = top - (FONT_SIZE * SCALE);
+			mouseOnExit = (x > left && x < right && y < top && y > bottom);
+		} else {
+			int left = F_WIDTH * SCALE / 6, right = left + (12 * SCALE),
+					top = 5 * F_HEIGHT * SCALE / 6, bottom = top - (FONT_SIZE * SCALE);
+			mouseOnExit = (x > left && x < right && y < top && y > bottom);
+		}
+	}
+	
+	private void mouseOnReset() {
+		int x = in.getX(), y = in.getY();
+		if(portraitMode) {
+			int left = 3 * F_WIDTH * SCALE / 4, right = left + (15 * SCALE),
+					top = F_HEIGHT * SCALE / 3, bottom = top - (FONT_SIZE * SCALE);
+			mouseOnReset = (x > left && x < right && y < top && y > bottom);
+		} else {
+			int left = F_WIDTH * SCALE / 4, right = left + (15 * SCALE),
+					top = 5 * F_HEIGHT * SCALE / 6, bottom = top - (FONT_SIZE * SCALE);
+			mouseOnReset = (x > left && x < right && y < top && y > bottom);
 		}
 	}
 	
@@ -213,13 +257,15 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 				drawLeft(g, vShift);
 			} else if(left == cursor) {
 				g.setColor(CURSOR);
-				drawLeft(getGraphics(), vShift);
+				drawLeft(g, vShift);
 			} else if(left.isStrategized()) {
 				g.setColor(STRATEGY);
-				drawLeft(getGraphics(), vShift);
+				drawLeft(g, vShift);
 			} else if(left.hasChain()) {
-				g.setColor(CHAIN);
-				drawLeft(getGraphics(), vShift);
+				if(cursor != null && left.getChain() == cursor.getChain()) {
+					g.setColor(CHAIN);
+					drawLeft(g, vShift);
+				}
 			}
 			int hShift = 0;
 			for( ; hShift < game.getCols(); hShift++) {
@@ -238,8 +284,10 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 					g.setColor(STRATEGY);
 					drawTop(g, hShift, vShift);		
 				} else if(top.hasChain()) {
-					g.setColor(CHAIN);
-					drawTop(getGraphics(), hShift, vShift);
+					if(cursor != null && top.getChain() == cursor.getChain()) {
+						g.setColor(CHAIN);
+						drawTop(g, hShift, vShift);
+					}
 				}
 				if(!right.isAvailable()) {
 					g.setColor(LINE);
@@ -251,8 +299,10 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 					g.setColor(STRATEGY);
 					drawRight(g, hShift, vShift);
 				} else if(right.hasChain()) {
-					g.setColor(CHAIN);
-					drawRight(getGraphics(), hShift, vShift);
+					if(cursor != null && right.getChain() == cursor.getChain()) {
+						g.setColor(CHAIN);
+						drawRight(g, hShift, vShift);
+					}
 				}
 				if(s.isFull()) {
 					g.setColor(s.getColor());
@@ -277,8 +327,10 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 				g.setColor(STRATEGY);
 				drawBottom(g, hShift, vShift);
 			} else if(bottom.hasChain()) {
-				g.setColor(CHAIN);
-				drawBottom(getGraphics(), hShift, vShift);
+				if(cursor != null && bottom.getChain() == cursor.getChain()) {
+					g.setColor(CHAIN);
+					drawBottom(g, hShift, vShift);
+				}
 			}
 		}
 		g.setColor(POINT);
@@ -323,36 +375,44 @@ public final class WindowGameRunner extends Canvas implements Runnable {
 	private void drawText(Graphics g) {
 		g.setFont(new Font("Trebuchet MS", Font.BOLD, FONT_SIZE * SCALE));
 		if(portraitMode) {
+			g.setColor(TEXT);
+			if(mouseOnExit) g.setColor(CURSOR);
+			g.drawString("Exit", 2 * F_WIDTH * SCALE / 3, F_HEIGHT * SCALE / 3);
+			g.setColor(TEXT);
+			if(mouseOnReset) g.setColor(CURSOR);
+			g.drawString("Reset", 3 * F_WIDTH * SCALE / 4, F_HEIGHT * SCALE / 3);
 			g.setColor(game.getTurn().getColor());
 			g.drawString("Turn: " + game.getTurn().getName(),
-					2 * F_WIDTH * SCALE / 3, F_HEIGHT * SCALE / 2);
-			if(game.isEndGame()) {
-				int i = 0;
-				g.setColor(Color.WHITE);
-				g.drawString("Scores: ", 2 * F_WIDTH * SCALE / 3,
-						(F_HEIGHT * SCALE / 2) + ++i * (FONT_SIZE * SCALE));
-				for(Player p : game.getPlayers()) {
-					g.setColor(p.getColor());
-					g.drawString(p.getName() + ": " + p.getScore(),
-							2 * F_WIDTH * SCALE / 3, (F_HEIGHT * SCALE / 2) +
-								++i * (FONT_SIZE * SCALE));
-				}
+					2 * F_WIDTH * SCALE / 3, F_HEIGHT * SCALE / 4);
+			int i = 0;
+			g.setColor(Color.WHITE);
+			g.drawString("Scores: ", 2 * F_WIDTH * SCALE / 3,
+					(F_HEIGHT * SCALE / 2) + ++i * (FONT_SIZE * SCALE));
+			for(Player p : game.getPlayers()) {
+				g.setColor(p.getColor());
+				g.drawString(p.getName() + ": " + p.getScore() + " (" + p.getWins() + " wins)",
+						2 * F_WIDTH * SCALE / 3, (F_HEIGHT * SCALE / 2) +
+							++i * (FONT_SIZE * SCALE));
 			}
 		} else {
+			g.setColor(TEXT);
+			if(mouseOnExit) g.setColor(CURSOR);
+			g.drawString("Exit", F_WIDTH * SCALE / 6, 5 * F_HEIGHT * SCALE / 6);
+			g.setColor(TEXT);
+			if(mouseOnReset) g.setColor(CURSOR);
+			g.drawString("Reset", F_WIDTH * SCALE / 4, 5 * F_HEIGHT * SCALE / 6);
 			g.setColor(game.getTurn().getColor());
-			g.drawString("Turn: " + game.getTurn().getName(), F_WIDTH * SCALE / 3,
+			g.drawString("Turn: " + game.getTurn().getName(), F_WIDTH * SCALE / 6,
 					3 * F_HEIGHT * SCALE / 4);
-			if(game.isEndGame()) {
-				int i = -1;
-				g.setColor(Color.WHITE);
-				g.drawString("Scores: ", 2 * F_WIDTH * SCALE / 3,
-						(3 * F_HEIGHT * SCALE / 4) + ++i * 56);
-				for(Player p : game.getPlayers()) {
-					g.setColor(p.getColor());
-					g.drawString(p.getName() + ": " + p.getScore(),
-							2 * F_WIDTH * SCALE / 3, (3 * F_HEIGHT * SCALE / 4) +
-								++i * 56);
-				}
+			g.setColor(Color.WHITE);
+			g.drawString("Scores: ", F_WIDTH * SCALE / 2,
+					(3 * F_HEIGHT * SCALE / 4));
+			int i = -1;
+			for(Player p : game.getPlayers()) {
+				g.setColor(p.getColor());
+				g.drawString(p.getName() + ": " + p.getScore() + " (" + p.getWins() + " wins)",
+						2 * F_WIDTH * SCALE / 3, (2 * F_HEIGHT * SCALE / 3) +
+							++i * (FONT_SIZE * SCALE));
 			}
 		}
 	}

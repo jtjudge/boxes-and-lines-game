@@ -20,6 +20,7 @@ class Game {
 	private int spacesLeft;
 	
 	private ArrayList<Player> players;
+	private ArrayList<Player> winners;
 	private Player currentTurn;
 	
 	Move nonmove;	//for iterator
@@ -31,6 +32,7 @@ class Game {
 	
 	//used by high-level CPU players
 	private boolean isEndGame;
+	private boolean isFinished;
 	private HashSet<Chain> activeChains;
 	
 	private HashSet<Space> endSpaces;
@@ -52,6 +54,7 @@ class Game {
 		this.cols = cols;
 		spacesLeft = rows * cols;
 		players = new ArrayList<>();
+		winners = new ArrayList<>();
 		legalMoves = new HashMap<>();
 		nonChains = new HashSet<>();
 		this.seed = NO_SEED;
@@ -60,6 +63,7 @@ class Game {
 		mergers = new HashSet<>();
 		blockers = new HashSet<>();
 		isEndGame = false;
+		isFinished = false;
 		activeChains = new HashSet<>();
 		constructSpaces();
 		constructMoves();
@@ -109,6 +113,7 @@ class Game {
 		}
 		updateEndSpaces();
 		spacesLeft -= num;
+		if(spacesLeft == 0) finishGame();
 		if(num == 0) changeTurn();
 		if(nonChains.isEmpty() && !isEndGame) isEndGame = true;
 	}
@@ -316,7 +321,7 @@ class Game {
 	
 	void beginEndGame() { isEndGame = true; }
 	
-	boolean isActive() { return spacesLeft != 0; }
+	boolean isFinished() { return this.isFinished; }
 	
 	HashSet<Chain> getActiveChains() { return activeChains; }
 	
@@ -429,6 +434,24 @@ class Game {
 			out += line + "\n";
 		}
 		return out;
+	}
+	
+	private void finishGame() {
+		int highScore = 0;
+		for(Player p: players) {
+			if(p.getScore() == highScore) {
+				winners.add(p);
+			}
+			if(p.getScore() > highScore) {
+				highScore = p.getScore();
+				winners.clear();
+				winners.add(p);
+			}
+		}
+		for(Player w: winners) {
+			w.winsUp();
+		}
+		isFinished = true;
 	}
 
 	private void constructMoves() {
@@ -695,9 +718,11 @@ class Game {
 	
 	private void assignColors() {
 		for(int i = 0; i < players.size(); i++) {
-			Random r = new Random();
-			players.get(i).setColor(new Color(r.nextFloat(), 
+			if(players.get(i).getColor() == null) {
+				Random r = new Random();
+				players.get(i).setColor(new Color(r.nextFloat(), 
 					r.nextFloat(), r.nextFloat()));
+			}
 		}
 	}
 }
